@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>A Smart Habit Tracker — Gamified</title>
+<style>
+  :root{
+    --bg:#f3f6fb; --card:#ffffff; --accent:#6c5ce7; --muted:#7a7f86;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family:Inter,Segoe UI,Arial; background:var(--bg); color:#111;
+    display:flex; align-items:flex-start; justify-content:center; padding:28px;
+  }
+  .app{
+    width:100%; max-width:1000px; display:grid; gap:18px;
+    grid-template-columns: 320px 1fr; align-items:start;
+  }
+
+  /* left panel */
+  .panel{
+    background:var(--card); padding:18px; border-radius:12px; box-shadow:0 6px 18px rgba(15,20,30,0.06);
+  }
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .avatar{
+    width:56px;height:56px;border-radius:12px;background:linear-gradient(135deg,var(--accent),#00b894);
+    display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:20px;
+    box-shadow:0 6px 14px rgba(108,92,231,0.18)
+  }
+  h1{font-size:18px;margin:0}
+  p.small{margin:6px 0 12px;color:var(--muted);font-size:13px}
+
+  .stat-row{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+  .stat{
+    flex:1;background:#fbfbff;padding:10px;border-radius:10px;text-align:center;
+  }
+  .stat .num{font-weight:700;font-size:18px}
+  .progress{
+    height:10px;background:#eef2ff;border-radius:8px;overflow:hidden;margin-top:8px;
+  }
+  .progress > i{
+    display:block;height:100%;background:linear-gradient(90deg,var(--accent),#00b894); width:0%;
+  }
+
+  /* add form */
+  form.add-form{display:grid;gap:8px}
+  .row{display:flex;gap:8px}
+  input[type=text], select{
+    padding:10px;border-radius:8px;border:1px solid #e3e6ee;flex:1;font-size:14px;
+  }
+  button.primary{
+    background:var(--accent); color:#fff;border:none;padding:10px 12px;border-radius:8px;cursor:pointer;
+  }
+
+  /* right panel (task list) */
+  .list-panel{background:var(--card); padding:18px; border-radius:12px; box-shadow:0 6px 18px rgba(15,20,30,0.06)}
+  .filters{display:flex;gap:8px;margin-bottom:12px}
+  .filters button{padding:8px 10px;border-radius:8px;border:1px solid #eef2ff;background:#fff;cursor:pointer}
+  .task-list{display:flex;flex-direction:column;gap:10px}
+  .task{
+    display:flex;align-items:center;justify-content:space-between;padding:10px;background:#fbfdff;border-radius:10px;
+    border-left:6px solid #f1f4ff;
+  }
+  .task .left{display:flex;gap:12px;align-items:center;flex:1}
+  .badge{padding:6px 8px;border-radius:8px;font-size:12px;background:#f5f7ff;color:#3550a1}
+  .task h3{margin:0;font-size:15px}
+  .muted{color:var(--muted);font-size:13px}
+  .actions{display:flex;gap:6px;align-items:center}
+  .btn{background:#fff;border:1px solid #e6e9f2;padding:6px 8px;border-radius:8px;cursor:pointer}
+  .btn.good{background:#e8fff4;border-color:#a4e9c9}
+  .btn.bad{background:#fff0f0;border-color:#f4b0b0}
+  .btn.tick{background:linear-gradient(90deg,#6c5ce7,#00b894);color:#fff;border:none}
+  .small{font-size:12px;padding:6px 8px;border-radius:8px;border:1px solid #eceff6;background:#fff}
+
+  footer.note{margin-top:12px;color:var(--muted);font-size:13px}
+
+  /* responsive */
+  @media (max-width:880px){
+    .app{grid-template-columns:1fr; padding:16px}
+  }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Smart Habit Tracker">
+    <!-- LEFT -->
+    <aside class="panel" aria-hidden="false">
+      <div class="brand">
+        <div class="avatar" id="avatar">S</div>
+        <div>
+          <h1>A Smart Habit Tracker</h1>
+          <p class="small">Gamified habit app — earn XP, build streaks, level up!</p>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <div class="num" id="xp-num">0 XP</div>
+          <div class="muted">XP</div>
+          <div class="progress" title="Progress to next level"><i id="xp-bar"></i></div>
+        </div>
+        <div class="stat">
+          <div class="num" id="level-num">Lv 1</div>
+          <div class="muted">Level</div>
+        </div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat">
+          <div class="num" id="coins-num">0</div>
+          <div class="muted">Coins</div>
+        </div>
+        <div class="stat">
+          <div class="num" id="streaks-num">0</div>
+          <div class="muted">Max Streak</div>
+        </div>
+      </div>
+
+      <form class="add-form" id="add-form">
+        <input type="text" id="title" placeholder="New habit title (e.g. Read Quran)" required />
+        <div class="row">
+          <select id="type">
+            <option value="habit">Habit (±)</option>
+            <option value="daily">Daily (streak)</option>
+            <option value="todo">To-Do (one-time)</option>
+          </select>
+          <input type="text" id="tag" placeholder="Tag (e.g. Study, Health)" />
+        </div>
+        <div class="row">
+          <input type="number" id="xp" placeholder="XP reward (default 10)" min="1" />
+          <input type="number" id="coin" placeholder="Coins reward (default 1)" min="0" />
+          <button type="submit" class="primary">Add</button>
+        </div>
+      </form>
+
+      <footer class="note">Tip: Habits have + and −. Dailies give streaks. To-Dos are one-time tasks.</footer>
+    </aside>
+
+    <!-- RIGHT -->
+    <main class="list-panel">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <strong>Tasks</strong>
+          <div class="muted" id="total-count">0 tasks</div>
+        </div>
+        <div>
+          <button class="small" id="clear-all">Clear All</button>
+          <button class="small" id="seed-sample">Seed Sample</button>
+        </div>
+      </div>
+
+      <div class="filters" aria-hidden="false">
+        <button data-filter="all" class="filter-btn">All</button>
+        <button data-filter="habit" class="filter-btn">Habits</button>
+        <button data-filter="daily" class="filter-btn">Dailies</button>
+        <button data-filter="todo" class="filter-btn">To-Dos</button>
+      </div>
+
+      <div class="task-list" id="task-list" aria-live="polite"></div>
+    </main>
+  </div>
+
+<script>
+/* Simple gamified habit tracker
+   - data persisted in localStorage under key 'smart-habit-data'
+   - tasks support types: habit (±), daily (streak), todo (one-time)
+   - XP/coins, level computed
+*/
+
+const storageKey = 'smart-habit-data-v1';
+
+// ===== helpers =====
+function uid(){ return 'id-'+Math.random().toString(36).slice(2,9); }
+function nowDateStr(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function load(){ try{ return JSON.parse(localStorage.getItem(storageKey)) || defaultData(); } catch(e){ return defaultData(); } }
+function save(){ localStorage.setItem(storageKey, JSON.stringify(state)); render(); }
+
+function defaultData(){
+  return {
+    player: { xp:0, coins:0, avatarLetter:'S', maxStreak:0 },
+    tasks: [],
+    lastDailyReset: nowDateStr()
+  };
+}
+
+function levelFromXp(xp){ return Math.floor(xp/100)+1; }
+function xpToNext(xp){ return 100 - (xp % 100); }
+
+// ===== state =====
+let state = load();
+
+// ===== UI refs =====
+const el = {
+  xpNum: document.getElementById('xp-num'),
+  xpBar: document.getElementById('xp-bar'),
+  levelNum: document.getElementById('level-num'),
+  coinsNum: document.getElementById('coins-num'),
+  streaksNum: document.getElementById('streaks-num'),
+  taskList: document.getElementById('task-list'),
+  addForm: document.getElementById('add-form'),
+  title: document.getElementById('title'),
+  type: document.getElementById('type'),
+  tag: document.getElementById('tag'),
+  xpInput: document.getElementById('xp'),
+  coinInput: document.getElementById('coin'),
+  totalCount: document.getElementById('total-count'),
+  clearAll: document.getElementById('clear-all'),
+  seedSample: document.getElementById('seed-sample'),
+  filterBtns: document.querySelectorAll('.filter-btn'),
+  avatar: document.getElementById('avatar')
+};
+
+// ===== functions =====
+function addTask(t){
+  const task = {
+    id: uid(),
+    title: t.title,
+    type: t.type, // habit|daily|todo
+    tag: t.tag||'',
+    xp: t.xp||10,
+    coin: t.coin||1,
+    created: Date.now(),
+    streak: 0,
+    bestStreak: 0,
+    completed: false // for todos/dailies toggling
+  };
+  state.tasks.unshift(task);
+  save();
+}
+
+function removeTask(id){
+  state.tasks = state.tasks.filter(x=>x.id!==id); save();
+}
+
+function giveRewards(xp, coins){
+  state.player.xp += xp;
+  state.player.coins += coins;
+  if (state.player.xp < 0) state.player.xp = 0;
+  if (state.player.coins < 0) state.player.coins = 0;
+  // update max streak in UI is managed elsewhere
+  save();
+}
+
+function handleHabitAction(id, change){ // change: +1 or -1
+  const t = state.tasks.find(x=>x.id===id);
+  if(!t) return;
+  // give or take xp/coins (bad action may subtract)
+  const xpGain = Math.max(1, Math.round(t.xp * change));
+  const coinGain = Math.max(0, Math.round(t.coin * change));
+  giveRewards(xpGain, coinGain);
+  // also for habit, update bestStreak maybe not relevant
+  renderToast(`${change>0?'+':'-'} ${Math.abs(xpGain)} XP, ${Math.abs(coinGain)} coins`);
+}
+
+function handleCompleteTask(id){
+  const t = state.tasks.find(x=>x.id===id);
+  if(!t) return;
+  // for todo: mark completed, reward once
+  if(t.type === 'todo'){
+    if(t.completed){
+      renderToast('To-Do already completed');
+      return;
+    }
+    t.completed = true;
+    giveRewards(t.xp, t.coin);
+    renderToast(`+${t.xp} XP, +${t.coin} coins for completing To-Do`);
+  } else if(t.type === 'daily'){
+    // toggle complete for today
+    if(t.completed){
+      // already completed today: un-complete but no refund
+      t.completed = false;
+      // do nothing or optionally penalize?
+      renderToast('Daily unmarked for today');
+    } else {
+      t.completed = true;
+      t.streak = (t.lastCompleted === nowDateStr()) ? t.streak : (t.lastCompleted === yesterdayStr() ? t.streak + 1 : 1);
+      t.lastCompleted = nowDateStr();
+      if(t.streak > t.bestStreak) t.bestStreak = t.streak;
+      if(t.streak > state.player.maxStreak) state.player.maxStreak = t.streak;
+      giveRewards(t.xp, t.coin);
+      renderToast(`Daily done! +${t.xp} XP, streak ${t.streak}`);
+    }
+  } else {
+    // habit shouldn't use complete
+    renderToast('Use + or − for habits');
+  }
+  save();
+}
+
+function yesterdayStr(){
+  const d = new Date(); d.setDate(d.getDate()-1);
+  return d.toISOString().slice(0,10);
+}
+
+function resetDailiesIfNeeded(){
+  const today = nowDateStr();
+  if(state.lastDailyReset === today) return;
+  // new day -> clear daily.completed flags
+  state.tasks.forEach(t => {
+    if(t.type === 'daily'){
+      // if lastCompleted is not yesterday and not today, streak may be broken
+      if(t.lastCompleted !== yesterdayStr() && t.lastCompleted !== today){
+        t.streak = 0;
+      }
+      t.completed = false;
+    }
+  });
+  state.lastDailyReset = today;
+  save();
+}
+
+function seedSample(){
+  const sample = [
+    {title:'Read Quran', type:'daily', tag:'Spiritual', xp:12, coin:2},
+    {title:'Drink Water (8 glasses)', type:'habit', tag:'Health', xp:6, coin:1},
+    {title:'Study Programming', type:'daily', tag:'Study', xp:10, coin:2},
+    {title:'Clean Room', type:'todo', tag:'Home', xp:8, coin:1}
+  ];
+  sample.forEach(s => addTask(s));
+  renderToast('Sample tasks added');
+}
+
+function clearAll(){
+  if(!confirm('Clear all tasks and reset player progress?')) return;
+  state = defaultData();
+  save();
+}
+
+// ===== render =====
+function render(){
+  // safety: reset dailies on day change
+  resetDailiesIfNeeded();
+
+  // update player stats
+  const xp = state.player.xp || 0;
+  el.xpNum.textContent = `${xp} XP`;
+  const lvl = levelFromXp(xp);
+  el.levelNum.textContent = `Lv ${lvl}`;
+  const pct = (xp % 100);
+  el.xpBar.style.width = `${(pct)}%`;
+  el.coinsNum.textContent = (state.player.coins||0);
+  el.streaksNum.textContent = (state.player.maxStreak||0);
+  el.avatar.textContent = state.player.avatarLetter || 'S';
+
+  // tasks
+  const filter = document.querySelector('.filter-btn.active')?.dataset.filter || 'all';
+  const tasksToShow = state.tasks.filter(t => filter==='all' ? true : t.type===filter);
+  el.totalCount.textContent = `${state.tasks.length} tasks`;
+
+  el.taskList.innerHTML = '';
+  if(tasksToShow.length === 0){
+    el.taskList.innerHTML = `<div class="muted">No tasks yet. Add a habit, daily or to-do.</div>`;
+    return;
+  }
+
+  tasksToShow.forEach(t => {
+    const wrap = document.createElement('div');
+    wrap.className = 'task';
+    const left = document.createElement('div'); left.className='left';
+    const tag = document.createElement('div'); tag.className='badge'; tag.textContent = t.tag||t.type;
+    const title = document.createElement('div'); title.style.flex='1';
+    title.innerHTML = `<h3>${escapeHtml(t.title)}</h3><div class="muted">${t.type} • XP ${t.xp} • Coins ${t.coin}</div>`;
+    left.appendChild(tag); left.appendChild(title);
+
+    const actions = document.createElement('div'); actions.className='actions';
+
+    if(t.type === 'habit'){
+      const plus = document.createElement('button'); plus.className='btn good'; plus.textContent='+';
+      plus.title = 'Positive action (gain XP)';
+      plus.addEventListener('click', ()=>handleHabitAction(t.id, +1));
+      const minus = document.createElement('button'); minus.className='btn bad'; minus.textContent='−';
+      minus.title='Negative action (lose XP)';
+      minus.addEventListener('click', ()=>handleHabitAction(t.id, -1));
+      actions.appendChild(plus);
+      actions.appendChild(minus);
+
+    } else {
+      const tick = document.createElement('button'); tick.className='btn tick'; tick.textContent = t.completed ? '✓' : 'Complete';
+      tick.title = 'Complete task';
+      tick.addEventListener('click', ()=>handleCompleteTask(t.id));
+      actions.appendChild(tick);
+    }
+
+    // show streaks for daily
+    if(t.type === 'daily'){
+      const s = document.createElement('div'); s.className='muted'; s.style.marginLeft='8px';
+      s.textContent = `Streak: ${t.streak||0} • Best: ${t.bestStreak||0}`;
+      actions.appendChild(s);
+    }
+
+    // delete button
+    const del = document.createElement('button'); del.className='btn'; del.textContent='Delete';
+    del.addEventListener('click', ()=>{ if(confirm('Delete this task?')) removeTask(t.id); });
+    actions.appendChild(del);
+
+    wrap.appendChild(left); wrap.appendChild(actions);
+    el.taskList.appendChild(wrap);
+  });
+}
+
+// small UI-toast
+function renderToast(msg){
+  // quick simple visual using alert-style small floating
+  const div = document.createElement('div');
+  div.textContent = msg;
+  Object.assign(div.style,{position:'fixed',right:'20px',bottom:'20px',background:'#111',color:'#fff',padding:'10px 14px',borderRadius:'8px',opacity:0,transition:'transform .25s,opacity .25s',transform:'translateY(10px)'});
+  document.body.appendChild(div);
+  requestAnimationFrame(()=>{ div.style.opacity=1; div.style.transform='translateY(0)'; });
+  setTimeout(()=>{ div.style.opacity=0; div.style.transform='translateY(10px)'; setTimeout(()=>div.remove(),300); },1500);
+}
+
+// escape helper
+function escapeHtml(s){ return (s+'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// ===== events =====
+el.addForm.addEventListener('submit', e=>{
+  e.preventDefault();
+  const title = el.title.value.trim();
+  if(!title) return;
+  const data = {
+    title,
+    type: el.type.value,
+    tag: el.tag.value.trim(),
+    xp: Number(el.xpInput.value) || 10,
+    coin: Number(el.coinInput.value) || 1
+  };
+  addTask(data);
+  el.addForm.reset();
+});
+
+el.clearAll.addEventListener('click', ()=> clearAll());
+el.seedSample.addEventListener('click', ()=> seedSample());
+el.filterBtns.forEach(b => {
+  b.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    render();
+  });
+});
+
+// initial: mark 'All' active
+document.querySelector('.filter-btn[data-filter="all"]').classList.add('active');
+
+// ensure we run daily reset every minute (if user keeps app open across midnight)
+setInterval(()=>{ resetDailiesIfNeeded(); }, 60*1000);
+
+render();
+</script>
+</body>
+</html>
